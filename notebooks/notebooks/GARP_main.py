@@ -56,21 +56,21 @@ common_start = max(start_dates)
 common_end = min(end_dates)
 
 for sheet, df in dataStruct.items():
-    # Create a new date range that covers the common period
-    common_dates = pd.date_range(start=common_start, end=common_end, freq='M')  # 'D' for daily frequency
-    # Reindex the DataFrame to the new date range
-    dataStruct[sheet] = df.reindex(common_dates)
-
-for sheet, df in dataStruct.items():
-    # Create a new date range that covers the common period
-    common_dates = pd.date_range(start=common_start, end=common_end, freq='M')  # 'D' for daily frequency
-    # Reindex the DataFrame to the new date range
-    dataStruct[sheet] = df.reindex(common_dates)
-
-df.fillna(method='ffill', inplace=True)
-
-for sheet, df in dataStruct.items():
-    print(f"{sheet}: Start = {df.index.min()}, End = {df.index.max()}")
+    # Check if the DataFrame starts before the common start date and trim
+    if df.index.min() < common_start:
+        df = df[df.index >= common_start]
+    
+    # Check if the DataFrame ends after the common end date and trim
+    if df.index.max() > common_end:
+        df = df[df.index <= common_end]
+    
+    # Manually set the first index of each DataFrame to match that of rf_prices, if necessary
+    # This is useful if there's a specific need to force alignment by index values
+    if len(df) > 0:  # Ensure the DataFrame is not empty
+        df.index.values[0] = dataStruct['Rf'].index.values[0]
+    
+    # Update the DataFrame in your data structure
+    dataStruct[sheet] = df
 
 rf_prices = dataStruct['Rf']
 benchmark_prices = dataStruct['Benchmark_Prices']
@@ -81,7 +81,39 @@ bvps = dataStruct[dataType + '_BVPS']
 total_debt = dataStruct[dataType + '_TotalDebt']
 
 # Convert to numeric and prepend NaN rows for lag
-eps_numeric = pd.concat([create_nan_rows_df(eps, lag)])
-sps_numeric = pd.concat([create_nan_rows_df(sps, lag)])
-bvps_numeric = pd.concat([create_nan_rows_df(bvps, lag)])
-total_debt_numeric = pd.concat([create_nan_rows_df(total_debt, lag)])
+eps = pd.concat([create_nan_rows_df(eps, lag)])
+sps= pd.concat([create_nan_rows_df(sps, lag)])
+bvps = pd.concat([create_nan_rows_df(bvps, lag)])
+total_debt = pd.concat([create_nan_rows_df(total_debt, lag)])
+
+total_months = len(rf_prices)  # Assuming 'rf_prices' is a pandas DataFrame or Series
+n_assets = prices.shape[1]  # Assuming 'prices' is a DataFrame
+
+benchmark_returns = (benchmark_prices.shift(-1) / benchmark_prices - 1)
+benchmark_returns.iloc[0] = np.nan  # Adjust the first data point
+
+# Assuming rf_returns are calculated per period (e.g., monthly) from annual data
+rf_returns = rf_prices / 12 / 100
+
+# Convert both Series to numpy arrays and then perform subtraction
+xs_benchmark_returns = benchmark_returns - rf_returns
+
+prices_returns = prices.shift(-1) / prices - 1
+prices_returns.iloc[0] = np.nan  # Setting the first row to NaN aligns the length
+
+# Calculate ROE, Leverage, and Earnings to Price
+roe = eps / bvps
+leverage = total_debt / bvps
+earnings2price = eps / prices
+
+# Create NaN DataFrames for the initial GrowthTrend periods
+nan_df_eps = pd.DataFrame(np.nan, index=eps.index[:GrowthTrend], columns=eps.columns)
+nan_df_sps = pd.DataFrame(np.nan, index=sps.index[:GrowthTrend], columns=sps.columns)
+
+# Calculate the growth rates as before
+earnings_growth = (eps.shift(-GrowthTrend) / eps - 1)
+sales_growth = (sps.shift(-GrowthTrend) / sps - 1)
+
+# Concatenate the NaN DataFrames with the calculated growth rates
+full_earnings_growth = pd.concat([nan_df_eps, earnings_growth.iloc[GrowthTrend:]])
+full_sales_growth = pd.concat([nan_df_sps, sales_growth.iloc[GrowthTrend:]])
