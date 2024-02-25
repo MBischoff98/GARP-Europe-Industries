@@ -1,1 +1,3 @@
 # GARP-Europe-Industries
+
+The GARP Strategy document outlines a methodology that merges growth and value investing principles, focusing on companies that offer consistent growth, reasonable valuations, and robust financial health. It utilizes a combination of growth, valuation, and financial health metrics to build a universe of eligible investments. The strategy emphasizes an equal-weighted investment in assets that meet specific criteria within a growth universe and a quality and value (QV) universe, ensuring the selection process avoids a zero intersection. The document details the transaction costs, data lag, growth trend, and the starting point for analysis, providing a comprehensive framework for implementing the GARP strategy
