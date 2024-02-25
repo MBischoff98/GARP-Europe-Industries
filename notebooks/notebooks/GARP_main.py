@@ -436,12 +436,21 @@ transaction_costs = {
     'QVUniverse': trx_cost
 }
 
+Weights = {
+    'GARP': None,
+    'GARP_high_trx_costs': None,
+    'GrowthUniverse': None,
+    'QVUniverse': None
+}
+
 for key, universe in universes.items():
     # Compute weights, returns, excess returns, and turnover for the given universe
     weights = compute_weights(universe, StartingPoint)
     cumulative_returns, excess_returns, turnover = compute_returns_for_universe(
         weights, prices_returns, rf_returns, transaction_costs[key], StartingPoint)
     
+    Weights[key] = weights
+
     TotalReturns[key].loc[cumulative_returns.index, key] = cumulative_returns.reindex(TotalReturns[key].index)
     ExcessReturns[key].loc[excess_returns.index, key] = excess_returns.reindex(ExcessReturns[key].index)
     MonthlyTurnover[key].loc[turnover.index, key] = turnover.reindex(MonthlyTurnover[key].index)
@@ -480,3 +489,29 @@ stats_df = pd.DataFrame(all_stats)
 # Transpose the DataFrame so strategies are columns and stats are rows
 stats_df = stats_df.T
 
+# Convert index to datetime if it's not already, assuming the index is PeriodIndex or similar
+if not isinstance(TotalReturns['Benchmark'].index, pd.DatetimeIndex):
+    TotalReturns['Benchmark'].index = TotalReturns['Benchmark'].index.to_timestamp()
+
+# Assuming your DataFrames' indices are already in datetime format or converted
+starting_date = TotalReturns['Benchmark'].index[StartingPoint]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# Plot each strategy
+for key, df in TotalReturns.items():
+    if df is not None:
+        ax.plot(df.loc[starting_date:].index, df.loc[starting_date:][key], label=key)
+
+# Formatting the plot
+ax.set_xlabel('Date', fontsize=14)
+ax.set_ylabel('Cumulative Returns', fontsize=14)
+ax.set_title('Strategy Cumulative Returns Comparison', fontsize=16)
+ax.legend(loc='best')
+ax.grid(True)
+
+# Rotate date labels for better readability
+plt.xticks(rotation=45)
+
+plt.tight_layout()
+plt.show()
