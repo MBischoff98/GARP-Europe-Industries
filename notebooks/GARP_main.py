@@ -5,30 +5,16 @@ import matplotlib.dates as mdates
 import os
 from scipy.stats import skew, kurtosis
 from statsmodels.api import OLS, add_constant
+import sys
 
-def adjust_df_for_lag_and_trim(df, lag):
-    """
-    Prepends NaN rows equal to 'lag' at the beginning of the DataFrame and 
-    trims the same number of rows from the end to maintain original length.
-    
-    Parameters:
-    - df: DataFrame to be adjusted.
-    - lag: Number of periods to lag the data.
-    
-    Returns:
-    - DataFrame with adjusted data.
-    """
+# Add custom directories to the system path for importing classes
+sys.path.extend(['../src/data', '../src/models', '../src/visualization'])
 
-    # Create NaN rows DataFrame with the same columns
-    nan_rows = pd.DataFrame(np.nan, index=np.arange(lag), columns=df.columns)
-    # Concatenate NaN rows at the beginning and reset the index to allow for trimming
-    concatenated_df = pd.concat([nan_rows, df]).reset_index(drop=True)
-    # Trim the DataFrame to maintain the original length
-    trimmed_df = concatenated_df.iloc[:-lag]
-    # Assign the original index to the trimmed DataFrame
-    trimmed_df.index = df.index
-    return trimmed_df
-    
+parent_dir = os.path.dirname(os.getcwd())
+sys.path.append(parent_dir)
+
+from src.data.data_preprocessor import DataPreprocessor
+
 def get_score(sort_variable, long_high_values=True):
     """
     Assigns ranks to values, handling NaNs. Higher values get higher ranks if
