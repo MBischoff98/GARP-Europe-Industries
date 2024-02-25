@@ -12,6 +12,7 @@ sys.path.append(parent_dir)
 
 from src.data_preprocessor import DataPreprocessor
 from src.portfolio_analysis import PortfolioAnalysis
+from src.plotting import Visualization
 
 # Define Meta variables
 trx_cost = 0.001
@@ -19,17 +20,10 @@ GrowthTrend = 36
 lag = 4
 StartingPoint = 90
 
-# Define color palette
-colors = {
-    'GARP': 'navy',  # Dark Blue
-    'Growth': 'darkred',  # Wine Red
-    'QV': '#54ff9f',  # Neon Green
-    'Benchmark': 'darkgrey'  # Dark Grey
-}
-
 # Initialize class instances
 data_preprocessor = DataPreprocessor()
 portfolio_analysis = PortfolioAnalysis(trx_cost=trx_cost, starting_point=StartingPoint)
+plotting = Visualization()
 
 # Load the data and process it to align dates etc.
 os.chdir("/Users/marcobischoff/Library/Mobile Documents/3L68KQB4HG~com~readdle~CommonDocuments/Documents/Banking & Finance/PMP/GARP-Europe-Industries")
@@ -173,63 +167,32 @@ for key, universe in universes.items():
     ExcessReturns[key].loc[excess_returns.index, key] = excess_returns.reindex(ExcessReturns[key].index)
     MonthlyTurnover[key].loc[turnover.index, key] = turnover.reindex(MonthlyTurnover[key].index)
 
-# Ensure rf_returns is a Series for easier operations
-rf_returns_series = rf_returns.squeeze()
-
-# Assuming StartingPoint is the index from where you want to start considering the data
+# Only analyse everything starting from the starting point onwards
 starting_index = prices_returns.index[StartingPoint]  # This assumes prices_returns's index is date-based and matches with rf_returns and xs_returns
 
-all_stats = {}
-
 xs_benchmark_returns_df = xs_benchmark_returns.loc[starting_index:].to_frame()
-rf_returns_series_sliced = rf_returns_series.loc[starting_index:]
+rf_returns_series_sliced = rf_returns.loc[starting_index:]
 
 # Calculate stats for the benchmark
 # For the benchmark, factor_xs_returns can be itself or a relevant benchmark factor returns
 statsBenchmark = portfolio_analysis.summarize_performance(xs_benchmark_returns_df, rf_returns_series_sliced, xs_benchmark_returns_df, 12)
+all_stats = {}
 all_stats['Benchmark'] = statsBenchmark
 
 # Now, loop through each strategy to compute and collect stats
 for strategy in ['GARP', 'GrowthUniverse', 'QVUniverse']:
     # Assuming ExcessReturns[strategy] contains the excess returns for the strategy
     xs_returns = ExcessReturns[strategy].loc[starting_index:].squeeze()  # Ensure this is a Series
-    # Call summarize_performance for each strategy
-    # Ensure factor_xs_returns and xs_returns are DataFrames, rf_returns_series_sliced is a Series
     stats = portfolio_analysis.summarize_performance(xs_returns.to_frame(), rf_returns_series_sliced, xs_benchmark_returns_df, 12)
-    
-    # Store the stats in the dictionary
     all_stats[strategy] = stats
 
 # Convert the dictionary of statistics into a DataFrame for easy viewing and analysis
-# Each key in `all_stats` becomes a column, and each sub-key becomes a row in the DataFrame
 stats_df = pd.DataFrame(all_stats)
-
-# Transpose the DataFrame so strategies are columns and stats are rows
 stats_df = stats_df.T
 
-# Convert index to datetime if it's not already, assuming the index is PeriodIndex or similar
-if not isinstance(TotalReturns['Benchmark'].index, pd.DatetimeIndex):
-    TotalReturns['Benchmark'].index = TotalReturns['Benchmark'].index.to_timestamp()
+# Call the plotting method
+plotting.plot_cumulative_returns(TotalReturns, StartingPoint)
 
-# Assuming your DataFrames' indices are already in datetime format or converted
-starting_date = TotalReturns['Benchmark'].index[StartingPoint]
-
-fig, ax = plt.subplots(figsize=(10, 6))
-
-# Plot each strategy
-for key, df in TotalReturns.items():
-    if df is not None:
-        ax.plot(df.loc[starting_date:].index, df.loc[starting_date:][key], label=key)
-
-# Formatting the plot
-ax.set_xlabel('Date', fontsize=14)
-ax.set_ylabel('Cumulative Returns', fontsize=14)
-ax.set_title('Strategy Cumulative Returns Comparison', fontsize=16)
-ax.legend(loc='best')
-ax.grid(True)
-
-# Rotate date labels for better readability
-plt.xticks(rotation=45)
-
-plt.tight_layout()
-plt.show()
+# Compute the average allocations
+average_allocations = {key: Weights[key].iloc[StartingPoint:].mean() for key in Weights}
+plotting.plot_bar_chart(average_allocations)
