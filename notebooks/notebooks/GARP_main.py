@@ -1,11 +1,24 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import os
 from scipy.stats import skew, kurtosis
 from statsmodels.api import OLS, add_constant
 
 def adjust_df_for_lag_and_trim(df, lag):
+    """
+    Prepends NaN rows equal to 'lag' at the beginning of the DataFrame and 
+    trims the same number of rows from the end to maintain original length.
+    
+    Parameters:
+    - df: DataFrame to be adjusted.
+    - lag: Number of periods to lag the data.
+    
+    Returns:
+    - DataFrame with adjusted data.
+    """
+
     # Create NaN rows DataFrame with the same columns
     nan_rows = pd.DataFrame(np.nan, index=np.arange(lag), columns=df.columns)
     # Concatenate NaN rows at the beginning and reset the index to allow for trimming
@@ -18,25 +31,48 @@ def adjust_df_for_lag_and_trim(df, lag):
     
 def get_score(sort_variable, long_high_values=True):
     """
-    Assigns ranks to the values in sort_variable.
-    Higher values get higher ranks if long_high_values is True,
-    and lower ranks if long_high_values is False.
+    Assigns ranks to values, handling NaNs. Higher values get higher ranks if
+    long_high_values is True, otherwise lower values get higher ranks.
+    
+    Parameters:
+    - sort_variable: Array-like object of values to rank.
+    - long_high_values: Boolean indicating the ranking direction.
+    
+    Returns:
+    - Array of ranks.
     """
+
+    # Initialize scores with NaNs
     scores = np.nan * np.ones_like(sort_variable)
-    non_nan_indices = ~np.isnan(sort_variable)
+    
+    # Find indices of non-NaN elements
+    non_nan_indices = np.where(~np.isnan(sort_variable))[0]
     valid_values = sort_variable[non_nan_indices]
     
+    # Sort non-NaN elements and get sorted indices
     if long_high_values:
-        sorted_indices = np.argsort(valid_values)[::-1]  # Descend for high values are better
+        sorted_indices = np.argsort(-valid_values)
     else:
-        sorted_indices = np.argsort(valid_values)  # Ascend for low values are better
+        sorted_indices = np.argsort(valid_values)
     
-    # Assign ranks (1-based indexing)
-    scores[non_nan_indices] = sorted_indices + 1
+    # Assign ranks (1-based indexing) based on sorted order, correctly mapping back to original positions
+    ranks = np.arange(1, len(valid_values) + 1)
+    scores[non_nan_indices[sorted_indices]] = ranks
     
     return scores
 
 def compute_weights(universe, starting_point):
+    """
+    Computes weights for assets in the universe, starting from a specific point.
+    
+    Parameters:
+    - universe: DataFrame indicating asset inclusion in the universe.
+    - starting_point: Index from where to start the computation.
+    
+    Returns:
+    - DataFrame of computed weights.
+    """
+
     weights = pd.DataFrame(np.nan, index=universe.index, columns=universe.columns)
     for month in range(starting_point, len(universe)):
         number_of_selected_assets = universe.iloc[month, :].sum()
@@ -74,8 +110,21 @@ def compute_turnover(previous_weights, new_weights, asset_returns, rf):
     return turnover, Rp
 
 def compute_returns_for_universe(universe_weights, prices_returns, rf_returns, trx_cost, starting_point):
-    total_months, n_assets = prices_returns.shape
-    universe_returns = pd.DataFrame(np.nan, index=prices_returns.index, columns=prices_returns.columns)
+    """
+    Computes cumulative returns, excess returns, and turnover for a given universe.
+    
+    Parameters:
+    - universe_weights: DataFrame of asset weights over time.
+    - prices_returns: DataFrame of asset returns.
+    - rf_returns: Series of risk-free rates.
+    - trx_cost: Transaction cost rate.
+    - starting_point: Index from where to start the computation.
+    
+    Returns:
+    - Tuple of (cumulative returns, excess returns, monthly turnover).
+    """
+
+    total_months, _ = prices_returns.shape
     cumulative_adjusted_returns = pd.Series(np.nan, index=prices_returns.index)
     monthly_turnover = pd.Series(np.nan, index=prices_returns.index)
     monthly_adjusted_returns = pd.Series(np.nan, index=prices_returns.index)
@@ -101,12 +150,24 @@ def compute_returns_for_universe(universe_weights, prices_returns, rf_returns, t
             cumulative_adjusted_returns.iloc[month + 1] = cumulative_adjusted_returns.iloc[month] * (1 + monthly_adjusted_returns.iloc[month + 1])
     
     # Calculate excess returns
-    # Calculate excess returns
     xs_returns = monthly_adjusted_returns - rf
 
     return cumulative_adjusted_returns, xs_returns, monthly_turnover
 
 def summarize_performance(xs_returns, rf, factor_xs_returns, annualization_factor):
+    """
+    Computes various performance statistics for investment strategies.
+    
+    Parameters:
+    - xs_returns: DataFrame of excess returns.
+    - rf: Series of risk-free rates.
+    - factor_xs_returns: DataFrame of factor excess returns.
+    - annualization_factor: Factor to annualize the statistics.
+    
+    Returns:
+    - Dictionary of computed statistics.
+    """
+
     # Ensure inputs are DataFrame for consistent processing
     if isinstance(xs_returns, pd.Series):
         xs_returns = xs_returns.to_frame()
@@ -114,7 +175,6 @@ def summarize_performance(xs_returns, rf, factor_xs_returns, annualization_facto
         factor_xs_returns = factor_xs_returns.to_frame()
     
     # Compute total returns
-    n_assets = xs_returns.shape[1]
     total_returns = xs_returns + rf.values.reshape(-1, 1)
 
     # Compute the terminal value of the portfolios to get the geometric mean return per period
@@ -248,10 +308,10 @@ bvps = dataStruct[dataType + '_BVPS']
 total_debt = dataStruct[dataType + '_TotalDebt']
 
 # Convert to numeric and prepend NaN rows for lag
-eps_adjusted = adjust_df_for_lag_and_trim(eps, lag)
-sps_adjusted = adjust_df_for_lag_and_trim(sps, lag)
-bvps_adjusted = adjust_df_for_lag_and_trim(bvps, lag)
-total_debt_adjusted = adjust_df_for_lag_and_trim(total_debt, lag)
+eps = adjust_df_for_lag_and_trim(eps, lag)
+sps = adjust_df_for_lag_and_trim(sps, lag)
+bvps = adjust_df_for_lag_and_trim(bvps, lag)
+total_debt = adjust_df_for_lag_and_trim(total_debt, lag)
 
 # Calculate monthly returns without introducing forward-looking bias
 benchmark_returns = (benchmark_prices / benchmark_prices.shift(1) - 1)
@@ -420,5 +480,3 @@ stats_df = pd.DataFrame(all_stats)
 # Transpose the DataFrame so strategies are columns and stats are rows
 stats_df = stats_df.T
 
-# Optionally, you can now print or analyze this DataFrame
-print(stats_df)
