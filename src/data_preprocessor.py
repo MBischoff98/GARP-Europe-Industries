@@ -58,10 +58,12 @@ class DataPreprocessor:
         common_start, common_end = max(start_dates), min(end_dates)
         common_date_range = pd.date_range(start=common_start, end=common_end, freq='M')
 
-        # Reindex and align all DataFrames to the common date range
         for sheet, df in dataStruct.items():
             df.index = df.index.to_period('M')  # Align to monthly periods
             new_index = common_date_range.to_period('M')
-            dataStruct[sheet] = df.reindex(new_index).to_timestamp()  # Reindex and convert back to timestamp
-
+            # Reindex and convert back to timestamp, setting to the end of the period
+            df = df.reindex(new_index).to_timestamp(how='end')
+            # Ensure the index is formatted as a date without time (removing nanoseconds implicitly)
+            dataStruct[sheet] = df
+            
         return dataStruct

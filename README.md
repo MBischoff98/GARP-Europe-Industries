@@ -10,9 +10,9 @@ This project implements the Growth at a Reasonable Price (GARP) strategy, blendi
 - **Strategy Execution**: Constructs Growth and QV universes, selecting their intersection for the GARP universe with equal weighting across assets.
 
 ## Data and Analysis
-- Detailed analysis of S&P500 sectors and industries based on the GARP indices methodology.
+- Detailed analysis of Stoxx 600  sectors and industries based on the GARP indices methodology.
 - Transaction costs are set at 10 basis points, with accounting data lagged by four months to prevent lookahead bias.
-- The strategy spans from November 2003 to November 2023, assessing performance across various metrics and robustness checks.
+- The strategy spans from 2006 to November 2024, assessing performance across various metrics and robustness checks.
 
 ## Requirements
 To get started with this project, please clone the GitHub repository inside your project folder. You can use the following command in your terminal or command prompt:

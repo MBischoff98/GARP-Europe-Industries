@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import statsmodels.api as sm
 import os
 import sys
 
@@ -196,3 +196,28 @@ plotting.plot_cumulative_returns(TotalReturns, StartingPoint)
 # Compute the average allocations
 average_allocations = {key: Weights[key].iloc[StartingPoint:].mean() for key in Weights}
 plotting.plot_bar_chart(average_allocations)
+
+# Load AQR Data
+AQR = pd.read_excel("data/AQR factors monthly.xlsx", index_col=0)  # Assuming the first column is the date
+# Convert the index to datetime if it's not already
+AQR_monthly_period = AQR.to_period('M')
+ExcessReturns['GARP'] = ExcessReturns['GARP'].to_period('M')
+
+AQR_monthly_period_df = pd.DataFrame(AQR_monthly_period)
+
+# Perform the join
+aligned_data = AQR_monthly_period_df.join(ExcessReturns['GARP'], how='inner')
+aligned_data = aligned_data.iloc[StartingPoint+1:]
+
+AQR_factors = aligned_data.iloc[:, :-1]  # All columns except the last one (assuming last is GARP xs returns)
+GARP_xs_returns = aligned_data.iloc[:, -1]  # Last column is GARP xs returns
+
+# Adding a constant for intercept in the regression model
+X = sm.add_constant(AQR_factors)
+y = GARP_xs_returns
+
+# Run the regression
+model = sm.OLS(y, X).fit()
+
+# Print the summary of the regression
+print(model.summary())
