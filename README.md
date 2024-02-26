@@ -19,10 +19,20 @@ To get started with this project, please clone the GitHub repository inside your
 
 ```bash
 git clone https://github.com/MBischoff98/GARP-Europe-Industries.git
+``` 
 
 Ensure you have the required versions of `mamba` and `conda` installed:
 - Mamba version 1.4.2
 - Conda version 23.3.1
 
-## Contributing
-Guidelines for contributing to the project, ensuring collaborative improvement and expansion.
+Please cd into the GARP-Europe-Industries folder inside your project folder and recreate and activate the virtual environment using mamba
+
+```bash
+ mamba env create -f GARP.yaml
+ ```
+
+Finally activate the environment
+
+```bash
+ mamba activate GARP
+ ```
